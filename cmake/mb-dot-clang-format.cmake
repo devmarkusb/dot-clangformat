@@ -10,6 +10,46 @@ get_filename_component(
     ABSOLUTE
 )
 
+# When this repo is the top-level project, default OFF so configure does not write ./.clang-format
+# here; when embedded via add_subdirectory/FetchContent, CMAKE_SOURCE_DIR is the consumer root —
+# default ON for those projects.
+if(_MB_DOT_CLANG_FORMAT_REPO_ROOT STREQUAL CMAKE_SOURCE_DIR)
+    set(_MB_DOT_CLANG_FORMAT_DEFAULT_ENABLE OFF)
+else()
+    set(_MB_DOT_CLANG_FORMAT_DEFAULT_ENABLE ON)
+endif()
+
+option(
+    MB_DOT_CLANG_FORMAT_ENABLE
+    "Copy .clang-format from mb-dot-clang-format into the consumer project"
+    ${_MB_DOT_CLANG_FORMAT_DEFAULT_ENABLE}
+)
+option(
+    MB_DOT_CLANG_FORMAT_QUIET
+    "Suppress mb-dot-clang-format status messages"
+    OFF
+)
+option(
+    MB_DOT_CLANG_FORMAT_NO_AUTO_INSTALL
+    "If ON, only define mb_dot_clang_format_install(); do not run it when this file is included"
+    OFF
+)
+set(MB_DOT_CLANG_FORMAT_OUTPUT
+    "${CMAKE_SOURCE_DIR}/.clang-format"
+    CACHE FILEPATH
+    "Where to install .clang-format (defaults to consumer project root)"
+)
+set(MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR
+    ""
+    CACHE STRING
+    "clang-format major version (e.g. match pre-commit); empty = detect via clang-format in PATH"
+)
+set(MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION
+    ""
+    CACHE STRING
+    "Use configs/vN/.clang-format (e.g. 14 or 22); empty = pick by clang-format major"
+)
+
 function(mb_dot_clang_format_install)
     if(NOT MB_DOT_CLANG_FORMAT_ENABLE)
         message(
@@ -82,3 +122,15 @@ function(mb_dot_clang_format_install)
         message(STATUS "${_MB_DOT_CLANG_FORMAT_OUT}")
     endif()
 endfunction()
+
+get_property(
+    _MB_DOT_CLANG_FORMAT_ALREADY_RAN
+    GLOBAL
+    PROPERTY _MB_DOT_CLANG_FORMAT_AUTO_INSTALL_RAN
+)
+if(NOT _MB_DOT_CLANG_FORMAT_ALREADY_RAN)
+    set_property(GLOBAL PROPERTY _MB_DOT_CLANG_FORMAT_AUTO_INSTALL_RAN TRUE)
+    if(NOT MB_DOT_CLANG_FORMAT_NO_AUTO_INSTALL)
+        mb_dot_clang_format_install()
+    endif()
+endif()

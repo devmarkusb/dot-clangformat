@@ -12,8 +12,14 @@ actually run (for example the one pinned in **pre-commit**).
 
 At the **top-level** `CMakeLists.txt` of your project (so `CMAKE_SOURCE_DIR` is your repo root), add a `FetchContent`
 block and point it at this repository. `FetchContent_MakeAvailable` loads this repo’s `CMakeLists.txt`, which includes
-`cmake/mb-dot-clang-format.cmake` and copies the chosen `configs/vN/.clang-format` to **`${CMAKE_SOURCE_DIR}/.clang-format`**
-by default.
+`cmake/mb-dot-clang-format.cmake`. That module **runs the install at configure time** (unless you opt out — see the table
+below), so you do **not** need to `set(MB_DOT_CLANG_FORMAT_ENABLE ON)`, pick a major version, or call
+`mb_dot_clang_format_install()` yourself. The chosen `configs/vN/.clang-format` is written to
+**`${CMAKE_SOURCE_DIR}/.clang-format`** by default.
+
+If you use **FetchContent_Populate** (or otherwise have the sources on disk) and do not want this repo’s full
+`CMakeLists.txt`, you can instead `include(.../cmake/mb-dot-clang-format.cmake)` once after populate; behavior is the
+same.
 
 ```cmake
 include(FetchContent)
@@ -37,6 +43,7 @@ you bump this dependency, so the copied file stays aligned.
 | `MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR`  | *(empty)*                           | **Major** version of `clang-format` to target (e.g. `17`). If empty, the module runs `clang-format --version` from `PATH` and parses the major version. |
 | `MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION`| *(empty)*                           | If set (e.g. `14` or `22`), always use `configs/vN/` for that `N`, ignoring detection and compatibility picking.                                        |
 | `MB_DOT_CLANG_FORMAT_QUIET`               | `OFF`                               | Suppress status messages from this module.                                                                                                              |
+| `MB_DOT_CLANG_FORMAT_NO_AUTO_INSTALL`     | `OFF`                               | If `ON`, defines `mb_dot_clang_format_install()` but does **not** run it when the module is included (for custom ordering).                             |
 
 **Choosing the preset:** among bundled `configs/vN/`, the module selects the **largest `N` such that `N <=` your
 clang-format major** (either from `MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR` or from `clang-format --version`). Example:
