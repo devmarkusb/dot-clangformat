@@ -51,29 +51,30 @@ bundled `v14` and `v22`, major `18` → `v14`; major `25` → `v22`.
 
 These steps are intentionally left to the consumer; they are **not** performed by this repo’s CMake.
 
-1. **Match pre-commit’s `clang-format` to CMake**  
+1. **Match pre-commit’s `clang-format` to CMake**
    Pre-commit runs the formatter from its own environment (hook `rev`, `mirrors-clang-format`, Docker, etc.). That
    binary may **not** be the same as `clang-format` on your `PATH` when CMake runs. To avoid picking the wrong
-   `configs/vN/`, set **`MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR`** to the major version of the formatter pre-commit uses (
+   `configs/vN/`, set **`MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR`** to the major version of
+   the formatter pre-commit uses (
    read it from your `.pre-commit-config.yaml`, hook docs, or by running the hook /
-   `pre-commit run clang-format --verbose` and checking which binary/version runs).  
+   `pre-commit run clang-format --verbose` and checking which binary/version runs).
    Alternatively, ensure the only `clang-format` on `PATH` during CMake configuration is the same major as pre-commit (
    same container, `direnv`, etc.).
 
-2. **Keep the copied `.clang-format` in version control (or not)**  
+2. **Keep the copied `.clang-format` in version control (or not)**
    The module writes into your source tree (by default the project root). Decide whether that file is **committed** or
    regenerated only locally; add ignore rules if you choose not to commit it.
 
-3. **CI and non-CMake workflows**  
+3. **CI and non-CMake workflows**
    If some pipelines **do not** run CMake, they will not refresh `.clang-format` from this repo. Either run a CMake
    configure step where needed, copy the appropriate `configs/vN/.clang-format` yourself in those jobs, or vendor the
    file another way.
 
-4. **Bumping this dependency**  
+4. **Bumping this dependency**
    After changing `GIT_TAG` / branch for `dot-clangformat`, re-run CMake so the installed file updates. Resolve merge
    conflicts if both this module and humans edit `.clang-format`.
 
-5. **`MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION`**  
+5. **`MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION`**
    Use when you intentionally want a specific preset (e.g. team policy) regardless of detection, or when detection is
    impossible in a given environment.
 
