@@ -4,7 +4,15 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   project(mb_dot_clang_format NONE)
 endif()
 
-option(MB_DOT_CLANG_FORMAT_ENABLE "Copy .clang-format from mb-dot-clang-format into the consumer project" ON)
+# When this file is the top-level CMakeLists (developing this repo), default OFF so configure does not
+# write ./.clang-format here; when embedded via add_subdirectory/FetchContent, CMAKE_SOURCE_DIR is the
+# consumer root and differs from CMAKE_CURRENT_SOURCE_DIR — default ON for those projects.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(_MB_DOT_CLANG_FORMAT_DEFAULT_ENABLE OFF)
+else()
+  set(_MB_DOT_CLANG_FORMAT_DEFAULT_ENABLE ON)
+endif()
+option(MB_DOT_CLANG_FORMAT_ENABLE "Copy .clang-format from mb-dot-clang-format into the consumer project" ${_MB_DOT_CLANG_FORMAT_DEFAULT_ENABLE})
 option(MB_DOT_CLANG_FORMAT_QUIET "Suppress mb-dot-clang-format status messages" OFF)
 set(MB_DOT_CLANG_FORMAT_OUTPUT "${CMAKE_SOURCE_DIR}/.clang-format" CACHE FILEPATH
   "Where to install .clang-format (defaults to consumer project root)")
