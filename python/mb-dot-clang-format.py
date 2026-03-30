@@ -16,15 +16,23 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Same search order as cmake/mb-dot-clang-format.cmake (find_program NAMES ...).
-_CLANG_FORMAT_CANDIDATES = (
-    "clang-format",
-    "clang-format-18",
-    "clang-format-17",
-    "clang-format-16",
-    "clang-format-15",
-    "clang-format-14",
-)
+def _max_suffix_major(repo_root: Path | None) -> int:
+    """Upper bound for clang-format-N names on PATH (bundled presets hint at what users install)."""
+    extra_headroom = 5
+    cap = 40
+    if repo_root is None:
+        return cap
+    vers = collect_config_versions(repo_root)
+    if not vers:
+        return cap
+    return min(cap, max(vers) + extra_headroom)
+
+
+def _iter_clang_format_names(repo_root: Path | None):
+    """Prefer unversioned `clang-format`, then `clang-format-N` from high N downward."""
+    yield "clang-format"
+    for n in range(_max_suffix_major(repo_root), 0, -1):
+        yield f"clang-format-{n}"
 
 
 def _repo_root_default() -> Path:
@@ -53,13 +61,13 @@ def parse_version_major(text: str) -> int | None:
     return None
 
 
-def find_clang_format(explicit: str | None) -> str | None:
+def find_clang_format(explicit: str | None, repo_root: Path | None = None) -> str | None:
     if explicit:
         p = Path(explicit)
         if p.is_file():
             return str(p.resolve())
         return shutil.which(explicit)
-    for name in _CLANG_FORMAT_CANDIDATES:
+    for name in _iter_clang_format_names(repo_root):
         found = shutil.which(name)
         if found:
             return found
@@ -117,7 +125,7 @@ def run_sync(
     else:
         major = clang_format_major
         if major is None:
-            cf = find_clang_format(clang_format_exe)
+            cf = find_clang_format(clang_format_exe, repo_root)
             if not cf:
                 print(
                     "mb-dot-clang-format: could not determine clang-format major version. "
