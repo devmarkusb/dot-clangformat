@@ -1,0 +1,44 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 14,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "default",
+      "displayName": "Standalone (install disabled)",
+      "description": "Configure this repo as top-level; MB_DOT_CLANG_FORMAT_ENABLE defaults to OFF.",
+      "inherits": "base"
+    },
+    {
+      "name": "ci-install",
+      "displayName": "CI: install preset into build dir",
+      "description": "Enables mb-dot-clang-format and writes .clang-format under the build tree (no repo root writes).",
+      "inherits": "base",
+      "cacheVariables": {
+        "MB_DOT_CLANG_FORMAT_ENABLE": "ON",
+        "MB_DOT_CLANG_FORMAT_OUTPUT": "${sourceDir}/build/ci-install/.clang-format",
+        "MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION": "22",
+        "MB_DOT_CLANG_FORMAT_QUIET": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "ci-install",
+      "configurePreset": "ci-install"
+    }
+  ]
+}

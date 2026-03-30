@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure and run mb-dot-clang-format (CMake preset)
+        run: cmake --preset ci-install
+
+      - name: Verify installed file matches bundled v22 preset
+        run: cmp -s build/ci-install/.clang-format configs/v22/.clang-format
+
+      - name: Python script (direct)
+        run: |
+          python3 python/mb-dot-clang-format.py \
+            --force-config-version 22 \
+            --output /tmp/dot-clangformat-test-out
+          cmp -s /tmp/dot-clangformat-test-out configs/v22/.clang-format
