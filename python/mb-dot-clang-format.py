@@ -5,6 +5,8 @@ Used by cmake/mb-dot-clang-format.cmake at configure time, or run directly for a
 (e.g. CI or non-CMake workflows)::
 
     python /path/to/mb-dot-clang-format.py --output /your/project/.clang-format
+
+Version probing uses a short subprocess timeout so a broken ``clang-format`` cannot hang configure.
 """
 
 from __future__ import annotations
@@ -15,6 +17,10 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+# Seconds; avoids a hung `clang-format --version` stalling CMake configure.
+_VERSION_PROBE_TIMEOUT_SEC = 2
+
 
 def _max_suffix_major(repo_root: Path | None) -> int:
     """Upper bound for clang-format-N names on PATH (bundled presets hint at what users install)."""
@@ -52,12 +58,17 @@ def collect_config_versions(repo_root: Path) -> list[int]:
 
 
 def parse_version_major(text: str) -> int | None:
-    m = re.search(r"clang-format version (\d+)", text)
+    """Parse major version from `clang-format --version` output; avoid loose matches on unrelated text."""
+    m = re.search(r"clang-format version (\d+)", text, flags=re.IGNORECASE)
     if m:
         return int(m.group(1))
-    m = re.search(r"version (\d+)\.\d", text)
-    if m:
-        return int(m.group(1))
+    for line in text.splitlines():
+        line_s = line.strip()
+        if "clang-format" not in line_s.lower():
+            continue
+        m = re.search(r"\bversion (\d+)\.\d", line_s)
+        if m:
+            return int(m.group(1))
     return None
 
 
@@ -81,8 +92,16 @@ def read_major_from_clang_format(clang_format: str) -> int | None:
             check=False,
             capture_output=True,
             text=True,
+            timeout=_VERSION_PROBE_TIMEOUT_SEC,
         )
     except OSError:
+        return None
+    except subprocess.TimeoutExpired:
+        print(
+            f"mb-dot-clang-format: timed out after {_VERSION_PROBE_TIMEOUT_SEC}s running "
+            f"{clang_format!r} --version",
+            file=sys.stderr,
+        )
         return None
     combined = (proc.stdout or "") + (proc.stderr or "")
     return parse_version_major(combined)

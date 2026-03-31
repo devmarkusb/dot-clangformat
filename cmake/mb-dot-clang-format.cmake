@@ -44,6 +44,11 @@ set(MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR
     CACHE STRING
     "clang-format major version (e.g. match pre-commit); empty = detect via clang-format in PATH"
 )
+set(MB_DOT_CLANG_FORMAT_CLANG_FORMAT_EXE
+    ""
+    CACHE STRING
+    "clang-format executable for version detection when major is empty; empty = search PATH"
+)
 set(MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION
     ""
     CACHE STRING
@@ -52,10 +57,6 @@ set(MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION
 
 function(mb_dot_clang_format_install)
     if(NOT MB_DOT_CLANG_FORMAT_ENABLE)
-        message(
-            STATUS
-            "mb-dot-clang-format: disabled (MB_DOT_CLANG_FORMAT_ENABLE=OFF)"
-        )
         return()
     endif()
 
@@ -98,6 +99,22 @@ function(mb_dot_clang_format_install)
             APPEND _py_cmd
             --clang-format-major
             "${MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR}"
+        )
+    endif()
+
+    if(
+        NOT (
+            MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION
+            AND NOT "${MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION}" STREQUAL ""
+        )
+        AND "${MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR}" STREQUAL ""
+        AND MB_DOT_CLANG_FORMAT_CLANG_FORMAT_EXE
+        AND NOT "${MB_DOT_CLANG_FORMAT_CLANG_FORMAT_EXE}" STREQUAL ""
+    )
+        list(
+            APPEND _py_cmd
+            --clang-format
+            "${MB_DOT_CLANG_FORMAT_CLANG_FORMAT_EXE}"
         )
     endif()
 

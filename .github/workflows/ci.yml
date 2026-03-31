@@ -16,15 +16,84 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install clang-format (PATH auto-detection tests)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
       - name: Configure and run mb-dot-clang-format (CMake preset)
         run: cmake --preset ci-install
 
       - name: Verify installed file matches bundled v22 preset
         run: cmp -s build/ci-install/.clang-format configs/v22/.clang-format
 
-      - name: Python script (direct)
+      - name: Python script — forced v22
         run: |
           python3 python/mb-dot-clang-format.py \
             --force-config-version 22 \
             --output /tmp/dot-clangformat-test-out
           cmp -s /tmp/dot-clangformat-test-out configs/v22/.clang-format
+
+      - name: Python script — major 14 picks v14
+        run: |
+          python3 python/mb-dot-clang-format.py \
+            --clang-format-major 14 \
+            --output /tmp/dot-clangformat-v14-out
+          cmp -s /tmp/dot-clangformat-v14-out configs/v14/.clang-format
+
+      - name: Python script — PATH auto-detection
+        run: |
+          python3 python/mb-dot-clang-format.py \
+            --output /tmp/dot-clangformat-autodetect-out
+          major="$(
+            clang-format --version 2>&1 \
+              | sed -nE 's/.*[cC]lang-format version ([0-9]+).*/\1/p' \
+              | head -n1
+          )"
+          if [ -z "$major" ]; then
+            echo "could not parse clang-format major from: $(clang-format --version 2>&1)" >&2
+            exit 1
+          fi
+          if [ "$major" -ge 22 ]; then exp=configs/v22/.clang-format
+          elif [ "$major" -ge 14 ]; then exp=configs/v14/.clang-format
+          else
+            echo "runner clang-format major $major has no compatible bundled preset (need >= 14)" >&2
+            exit 1
+          fi
+          cmp -s /tmp/dot-clangformat-autodetect-out "$exp"
+
+      - name: Python script — invalid force exits non-zero
+        run: |
+          set +e
+          python3 python/mb-dot-clang-format.py \
+            --force-config-version 99 \
+            --output /tmp/dot-clangformat-should-fail
+          ec=$?
+          set -e
+          if [ "$ec" -eq 0 ]; then
+            echo "expected non-zero exit for missing config v99" >&2
+            exit 1
+          fi
+
+      - name: Python script — explicit clang-format binary
+        run: |
+          cf="$(command -v clang-format)"
+          python3 python/mb-dot-clang-format.py \
+            --clang-format "$cf" \
+            --output /tmp/dot-clangformat-exe-out
+          major="$(
+            "$cf" --version 2>&1 \
+              | sed -nE 's/.*[cC]lang-format version ([0-9]+).*/\1/p' \
+              | head -n1
+          )"
+          if [ -z "$major" ]; then
+            echo "could not parse clang-format major from: $("$cf" --version 2>&1)" >&2
+            exit 1
+          fi
+          if [ "$major" -ge 22 ]; then exp=configs/v22/.clang-format
+          elif [ "$major" -ge 14 ]; then exp=configs/v14/.clang-format
+          else
+            echo "clang-format major $major has no compatible bundled preset (need >= 14)" >&2
+            exit 1
+          fi
+          cmp -s /tmp/dot-clangformat-exe-out "$exp"

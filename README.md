@@ -36,14 +36,19 @@ you bump this dependency, so the copied file stays aligned.
 
 ### Cache / configure options
 
-| Variable                                  | Default                             | Meaning                                                                                                                                                 |
-|-------------------------------------------|-------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `MB_DOT_CLANG_FORMAT_ENABLE`              | `ON`                                | Defaults to **`OFF`** when this repo is the top-level project, **`ON`** when embedded via FetchContent. Set to `OFF` to **opt out** (no copy, no checks). |
-| `MB_DOT_CLANG_FORMAT_OUTPUT`              | `${CMAKE_SOURCE_DIR}/.clang-format` | Destination path for the installed file.                                                                                                                |
-| `MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR`  | *(empty)*                           | **Major** version of `clang-format` to target (e.g. `17`). If empty, the module runs `clang-format --version` from `PATH` and parses the major version. |
-| `MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION`| *(empty)*                           | If set (e.g. `14` or `22`), always use `configs/vN/` for that `N`, ignoring detection and compatibility picking.                                        |
-| `MB_DOT_CLANG_FORMAT_QUIET`               | `OFF`                               | Suppress status messages from this module.                                                                                                              |
-| `MB_DOT_CLANG_FORMAT_NO_AUTO_INSTALL`     | `OFF`                               | If `ON`, defines `mb_dot_clang_format_install()` but does **not** run it when the module is included (for custom ordering).                             |
+The first configure picks defaults for `MB_DOT_CLANG_FORMAT_ENABLE` (see below) and stores them in the CMake cache.
+If you switch between using this repo as a standalone project and embedding it in another project, clear or adjust the
+cached value so it matches how you are configuring.
+
+| Variable                                   | Default                                                                 | Meaning                                                                                                                                                    |
+|--------------------------------------------|-------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `MB_DOT_CLANG_FORMAT_ENABLE`               | **`OFF`** if this repo is the top-level project; **`ON`** if embedded | Set to `OFF` to **opt out** (no install, no Python run). The initial default is chosen when the option is first created and then follows the cache.          |
+| `MB_DOT_CLANG_FORMAT_OUTPUT`               | `${CMAKE_SOURCE_DIR}/.clang-format`                                   | Destination path for the installed file.                                                                                                                 |
+| `MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR`   | *(empty)*                                                             | **Major** version of `clang-format` to target (e.g. `17`). If empty, the module probes `clang-format --version` (see `MB_DOT_CLANG_FORMAT_CLANG_FORMAT_EXE`). |
+| `MB_DOT_CLANG_FORMAT_CLANG_FORMAT_EXE`     | *(empty)*                                                             | If set and major is empty and force is empty, this executable is used for `--version` probing instead of searching `PATH`. Ignored when major or force is set. |
+| `MB_DOT_CLANG_FORMAT_FORCE_CONFIG_VERSION` | *(empty)*                                                             | If set (e.g. `14` or `22`), always use `configs/vN/` for that `N`, ignoring detection and compatibility picking.                                           |
+| `MB_DOT_CLANG_FORMAT_QUIET`                | `OFF`                                                                   | Suppress status messages from this module.                                                                                                                 |
+| `MB_DOT_CLANG_FORMAT_NO_AUTO_INSTALL`      | `OFF`                                                                   | If `ON`, defines `mb_dot_clang_format_install()` but does **not** run it when the module is included (for custom ordering).                                  |
 
 **Choosing the preset:** among bundled `configs/vN/`, the module selects the **largest `N` such that `N <=` your
 clang-format major** (either from `MB_DOT_CLANG_FORMAT_CLANG_FORMAT_MAJOR` or from `clang-format --version`). Example:
@@ -65,8 +70,9 @@ These steps are intentionally left to the consumer; they are **not** performed b
    the formatter pre-commit uses (
    read it from your `.pre-commit-config.yaml`, hook docs, or by running the hook /
    `pre-commit run clang-format --verbose` and checking which binary/version runs).
-   Alternatively, ensure the only `clang-format` on `PATH` during CMake configuration is the same major as pre-commit (
-   same container, `direnv`, etc.).
+   If the hook uses a known binary path, you can set **`MB_DOT_CLANG_FORMAT_CLANG_FORMAT_EXE`** instead (with major left
+   empty) so configure probes that executable’s version. Alternatively, ensure the only `clang-format` on `PATH` during
+   CMake configuration is the same major as pre-commit (same container, `direnv`, etc.).
 
 2. **Keep the copied `.clang-format` in version control (or not)**
    The module writes into your source tree (by default the project root). Decide whether that file is **committed** or
@@ -75,7 +81,14 @@ These steps are intentionally left to the consumer; they are **not** performed b
 3. **CI and non-CMake workflows**
    If some pipelines **do not** run CMake, they will not refresh `.clang-format` from this repo. Either run a CMake
    configure step where needed, copy the appropriate `configs/vN/.clang-format` yourself in those jobs, or vendor the
-   file another way.
+   file another way. You can also run the installer directly, for example:
+
+   ```bash
+   python3 /path/to/dot-clangformat/python/mb-dot-clang-format.py --output /your/repo/.clang-format
+   ```
+
+   Optional flags: `--repo-root`, `--clang-format-major`, `--force-config-version`,
+   **`--clang-format /path/to/clang-format`** (use this binary for version detection when major is not passed), `--quiet`.
 
 4. **Bumping this dependency**
    After changing `GIT_TAG` / branch for `dot-clangformat`, re-run CMake so the installed file updates. Resolve merge
@@ -91,8 +104,11 @@ These steps are intentionally left to the consumer; they are **not** performed b
 
 - **CMake presets:** `CMakePresets.json` defines `default` (standalone configure; install stays off) and `ci-install`
   (enables `mb-dot-clang-format`, writes `build/ci-install/.clang-format`). Example: `cmake --preset default`.
-- **CI:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the `ci-install` preset and the Python installer,
-  then checks the output against `configs/v22/.clang-format`.
+  `CMakeLists.txt` passes `PRE_COMMIT_INSTALL_EXAMPLE_CONFIG OFF` into `mb_pre_commit_setup()` so configure does not
+  replace this repo’s tracked pre-commit / markdownlint configs.
+- **CI:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the `ci-install` preset, direct Python installs
+  (forced `v22`, compatibility pick for major `14`, PATH auto-detection, `--clang-format` with an explicit binary, and
+  an invalid `--force-config-version`), and compares outputs to the bundled presets where applicable.
 
 ## Layout
 

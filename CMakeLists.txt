@@ -13,4 +13,5 @@ FetchContent_Declare(
     GIT_TAG v1.4.0
 )
 FetchContent_MakeAvailable(mb_pre_commit)
-mb_pre_commit_setup()
+# This repo owns `.pre-commit-config.yaml` / `.markdownlint.yaml`; do not overwrite them from mb-pre-commit examples.
+mb_pre_commit_setup(PRE_COMMIT_INSTALL_EXAMPLE_CONFIG OFF)
