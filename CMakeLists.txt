@@ -10,7 +10,7 @@ include(FetchContent)
 FetchContent_Declare(
     mb_pre_commit
     GIT_REPOSITORY https://github.com/devmarkusb/pre-commit.git
-    GIT_TAG v1.6.0
+    GIT_TAG v2.2.0
 )
 FetchContent_MakeAvailable(mb_pre_commit)
 # This repo owns `.pre-commit-config.yaml` / `.markdownlint.yaml`; do not overwrite them from mb-pre-commit examples.
